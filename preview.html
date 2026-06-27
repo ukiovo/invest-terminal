@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>预览 · AI 组合压力测试</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18",
+      "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
+      "react-dom/client": "https://esm.sh/react-dom@18/client",
+      "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+    }
+  }
+  </script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>html,body{margin:0;background:#0a0e14}</style>
+</head>
+<body>
+  <div id="root" style="padding:24px;color:#888;font-family:monospace">加载中…</div>
+  <script>
+    // 读取同目录下的 .jsx，用 Babel 把 JSX 转成 JS（保留 ES import，由浏览器的 import map 解析），
+    // 再作为原生 ES 模块加载渲染。修改 .jsx 后直接刷新本页即可。
+    // 用 ?file=xxx.jsx 指定要预览哪个组件，默认压力测试。
+    const FILE = new URLSearchParams(location.search).get('file') || 'app.jsx';
+    fetch(FILE + '?t=' + Date.now())
+      .then(r => { if (!r.ok) throw new Error('无法读取 jsx（HTTP ' + r.status + '）'); return r.text(); })
+      .then(src => {
+        const code = src.replace(/export\s+default\s+function\s+App/, 'function App')
+                        + '\nexport default App;';
+        const out = Babel.transform(code, {
+          presets: [['react', { runtime: 'automatic' }]],
+          sourceType: 'module',
+        }).code;
+        const url = URL.createObjectURL(new Blob([out], { type: 'text/javascript' }));
+        return Promise.all([import(url), import('react'), import('react-dom/client')]);
+      })
+      .then(([mod, React, { createRoot }]) => {
+        createRoot(document.getElementById('root')).render(React.createElement(mod.default));
+      })
+      .catch(e => {
+        document.getElementById('root').innerHTML =
+          '<pre style="color:#f85149;white-space:pre-wrap">预览出错：' + e.message + '</pre>';
+      });
+  </script>
+</body>
+</html>

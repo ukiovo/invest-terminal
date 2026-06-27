@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交易复盘日志 · Trade Journal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a21;
+    --panel-2: #1b2029;
+    --line: #262d38;
+    --line-bright: #333c4a;
+    --ink: #e8ecf1;
+    --ink-dim: #8b95a4;
+    --ink-faint: #5a6675;
+    --amber: #f5a623;
+    --amber-dim: #b3791a;
+    --green: #3fb27f;
+    --red: #e25563;
+    --blue: #5b8def;
+    --mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, "Cascadia Code", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    font-size: 15px;
+    min-height: 100vh;
+  }
+  ::selection { background: rgba(245,166,35,0.25); }
+
+  /* ---- top bar ---- */
+  .topbar {
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand .mark {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: var(--amber);
+    border: 1px solid var(--amber-dim);
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+  .brand h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.2px; }
+  .brand .sub { font-size: 12px; color: var(--ink-faint); font-family: var(--mono); }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .sync-dot { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-dim); font-family: var(--mono); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); }
+  .dot.ok { background: var(--green); box-shadow: 0 0 6px rgba(63,178,127,0.6); }
+  .dot.busy { background: var(--amber); animation: pulse 1s infinite; }
+  .dot.err { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    border: 1px solid var(--line-bright);
+    background: var(--panel-2);
+    color: var(--ink);
+    padding: 6px 13px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--amber-dim); color: var(--amber); }
+  .btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+  .btn-ghost { background: transparent; border-color: var(--line); color: var(--ink-dim); }
+  .btn-amber { background: var(--amber); border-color: var(--amber); color: #1a1205; font-weight: 600; }
+  .btn-amber:hover { background: #ffb838; color: #1a1205; }
+  .btn-amber:disabled { background: var(--panel-2); border-color: var(--line); color: var(--ink-faint); cursor: not-allowed; }
+  .btn-sm { font-size: 12px; padding: 4px 9px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 80px; }
+
+  /* ---- auth gate ---- */
+  .auth-screen {
+    max-width: 380px; margin: 8vh auto 0; padding: 0 20px;
+  }
+  .auth-card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 32px 28px;
+  }
+  .auth-card h2 { font-size: 19px; margin-bottom: 6px; letter-spacing: 0.2px; }
+  .auth-card .tagline { color: var(--ink-dim); font-size: 13px; margin-bottom: 24px; line-height: 1.5; }
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 12px; color: var(--ink-dim);
+    margin-bottom: 6px; font-family: var(--mono); letter-spacing: 0.3px;
+  }
+  .field input, .field textarea, .field select {
+    width: 100%; background: var(--bg); border: 1px solid var(--line-bright);
+    color: var(--ink); padding: 10px 12px; border-radius: 6px;
+    font-family: var(--sans); font-size: 14px; transition: border 0.15s;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    outline: none; border-color: var(--amber);
+  }
+  .auth-toggle { text-align: center; margin-top: 18px; font-size: 13px; color: var(--ink-dim); }
+  .auth-toggle a { color: var(--amber); cursor: pointer; text-decoration: none; }
+  .auth-err { color: var(--red); font-size: 13px; margin-top: 12px; min-height: 18px; font-family: var(--mono); }
+
+  /* ---- decision gate ---- */
+  .gate {
+    background: linear-gradient(180deg, rgba(245,166,35,0.06), transparent);
+    border: 1px solid var(--amber-dim);
+    border-radius: 10px; padding: 22px 24px; margin-bottom: 22px;
+  }
+  .gate .gate-q { font-size: 15px; font-weight: 600; color: var(--amber); margin-bottom: 6px; }
+  .gate .gate-body { font-size: 13px; color: var(--ink-dim); margin-bottom: 16px; line-height: 1.55; }
+  .gate .checkrow { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none; }
+  .gate input[type=checkbox] { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--amber); cursor: pointer; flex-shrink: 0; }
+  .gate .checkrow span { font-size: 14px; line-height: 1.5; }
+
+  /* ---- form sections ---- */
+  .form-shell { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .form-shell.locked { opacity: 0.42; pointer-events: none; filter: saturate(0.5); }
+  .sec { border-bottom: 1px solid var(--line); padding: 20px 24px; }
+  .sec:last-child { border-bottom: none; }
+  .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .sec-num { font-family: var(--mono); font-size: 11px; color: var(--amber); border: 1px solid var(--amber-dim); border-radius: 3px; padding: 1px 6px; }
+  .sec-title { font-size: 14px; font-weight: 600; letter-spacing: 0.3px; }
+  .sec-title .en { color: var(--ink-faint); font-weight: 400; font-family: var(--mono); font-size: 12px; margin-left: 6px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  textarea { resize: vertical; min-height: 64px; line-height: 1.55; }
+  .hint { font-size: 11px; color: var(--ink-faint); margin-top: 5px; line-height: 1.4; }
+
+  /* ---- risk meter ---- */
+  .risk-box {
+    background: var(--panel-2); border: 1px solid var(--line-bright);
+    border-radius: 8px; padding: 16px 18px; margin-top: 4px;
+  }
+  .risk-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .risk-row:last-child { margin-bottom: 0; }
+  .risk-label { font-size: 12px; color: var(--ink-dim); font-family: var(--mono); }
+  .risk-val { font-family: var(--mono); font-size: 15px; font-weight: 600; }
+  .risk-val.warn { color: var(--red); }
+  .risk-val.ok { color: var(--green); }
+  .risk-val.neutral { color: var(--ink); }
+  .risk-bar-track { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .risk-bar-fill { height: 100%; transition: width 0.3s, background 0.3s; border-radius: 3px; }
+  .risk-note { font-size: 11px; margin-top: 10px; line-height: 1.4; color: var(--ink-faint); }
+
+  .submit-bar { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .submit-msg { font-size: 12px; color: var(--ink-dim); font-family: var(--mono); }
+
+  /* ---- history ---- */
+  .section-divider { display: flex; align-items: center; gap: 12px; margin: 38px 0 20px; }
+  .section-divider h2 { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; color: var(--ink-dim); text-transform: uppercase; font-family: var(--mono); white-space: nowrap; }
+  .section-divider .ln { flex: 1; height: 1px; background: var(--line); }
+
+  .ticker-group { margin-bottom: 26px; }
+  .ticker-header {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    background: var(--panel-2); border: 1px solid var(--line-bright);
+    border-radius: 8px 8px 0 0; cursor: pointer; user-select: none;
+  }
+  .ticker-header .tk { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--amber); }
+  .ticker-header .cnt { font-size: 12px; color: var(--ink-dim); }
+  .ticker-header .chev { margin-left: auto; color: var(--ink-faint); transition: transform 0.2s; font-family: var(--mono); }
+  .ticker-header.collapsed .chev { transform: rotate(-90deg); }
+  .ticker-cards { border: 1px solid var(--line-bright); border-top: none; border-radius: 0 0 8px 8px; }
+  .ticker-cards.hidden { display: none; }
+
+  .trade-card { border-bottom: 1px solid var(--line); padding: 16px 18px; }
+  .trade-card:last-child { border-bottom: none; }
+  .tc-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tc-date { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+  .tc-tag { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--line-bright); color: var(--ink-dim); }
+  .tc-tag.entry { color: var(--blue); border-color: rgba(91,141,239,0.4); }
+  .tc-tag.risk-hi { color: var(--red); border-color: rgba(226,85,99,0.4); }
+  .tc-tag.risk-lo { color: var(--green); border-color: rgba(63,178,127,0.4); }
+  .tc-tag.open { color: var(--amber); border-color: var(--amber-dim); }
+  .tc-spacer { flex: 1; }
+  .tc-actions { display: flex; gap: 6px; }
+  .tc-body { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .tc-body { grid-template-columns: 1fr; } }
+  .tc-field { font-size: 13px; }
+  .tc-field .k { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-bottom: 3px; letter-spacing: 0.3px; }
+  .tc-field .v { color: var(--ink); line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+  .tc-field .v.empty { color: var(--ink-faint); font-style: italic; }
+  .tc-review { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line-bright); }
+  .tc-review-head { font-family: var(--mono); font-size: 11px; color: var(--amber); margin-bottom: 8px; letter-spacing: 0.5px; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--ink-faint); }
+  .empty-state .big { font-family: var(--mono); font-size: 14px; color: var(--ink-dim); margin-bottom: 8px; }
+  .empty-state .small { font-size: 13px; }
+
+  /* ---- modal ---- */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: flex-start; justify-content: center; z-index: 100; padding: 40px 20px; overflow-y: auto; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--line-bright); border-radius: 10px; max-width: 560px; width: 100%; }
+  .modal-head { padding: 18px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+  .modal-head h3 { font-size: 15px; }
+  .modal-body { padding: 22px; }
+  .modal-foot { padding: 16px 22px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px; }
+  .x-btn { background: none; border: none; color: var(--ink-faint); font-size: 22px; cursor: pointer; line-height: 1; }
+  .x-btn:hover { color: var(--ink); }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--panel-2); border: 1px solid var(--line-bright); border-radius: 8px; padding: 12px 20px; font-size: 13px; font-family: var(--mono); z-index: 200; opacity: 0; transition: all 0.3s; pointer-events: none; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.ok { border-color: var(--green); color: var(--green); }
+  .toast.err { border-color: var(--red); color: var(--red); }
+
+  @media (max-width: 640px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .topbar { padding: 12px 14px; }
+    .brand .sub { display: none; }
+    .wrap { padding: 18px 14px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<div id="authScreen" class="auth-screen" style="display:none;">
+  <div class="auth-card">
+    <h2 id="authTitle">登录</h2>
+    <p class="tagline">交易复盘日志 — 你的记录只属于你,经行级安全隔离,跨设备同步。</p>
+    <div class="field">
+      <label>邮箱 EMAIL</label>
+      <input type="email" id="authEmail" autocomplete="email" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label>密码 PASSWORD</label>
+      <input type="password" id="authPass" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-amber" id="authBtn" style="width:100%;">登录</button>
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-toggle" id="authToggle">
+      还没有账号? <a id="toggleLink">注册一个</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="app" style="display:none;">
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark">TJ</span>
+      <h1>交易复盘日志</h1>
+      <span class="sub">thesis · invalidation · pre-mortem</span>
+    </div>
+    <div class="topbar-right">
+      <div class="sync-dot"><span class="dot" id="syncDot"></span><span id="syncTxt">就绪</span></div>
+      <button class="btn btn-ghost btn-sm" id="signOutBtn">登出</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- DECISION GATE -->
+    <div class="gate">
+      <div class="gate-q">下单前的第一道闸 · Decision Test</div>
+      <div class="gate-body">
+        如果你现在<strong>没有</strong>这个仓位,账户是干净的 —— 你会在今天、用这个价格和这个仓位,建立这笔交易吗?<br>
+        如果答案是"不会",那你接下来要填的 thesis 很可能是事后合理化(motivated reasoning),不是入场理由。诚实回答,再往下填。
+      </div>
+      <label class="checkrow">
+        <input type="checkbox" id="gateCheck">
+        <span>是的 —— 即使空仓,我现在也会主动建立这笔交易。我是基于逻辑入场,不是为了摊平、不甘割肉、或追涨杀跌。</span>
+      </label>
+    </div>
+
+    <!-- FORM -->
+    <div class="form-shell locked" id="formShell">
+      <!-- sec 1: position -->
+      <div class="sec">
+        <div class="sec-head"><span class="sec-num">01</span><span class="sec-title">头寸 <span class="en">POSITION</span></span></div>
+        <div class="grid-3">
+          <div class="field"><label>标的 TICKER</label><input id="f_ticker" placeholder="如 07709 / MU"></div>
+          <div class="field"><label>日期 DATE</label><input type="date" id="f_date"></div>
+          <div class="field"><label>入场价 ENTRY PRICE</label><input type="number" step="any" id="f_entry" placeholder="均价"></div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label>仓位金额 POSITION SIZE</label><input type="number" step="any" id="f_size" placeholder="本次投入金额"></div>
+          <div class="field"><label>风险资本 RISK CAPITAL</label><input type="number" step="any" id="f_riskcap" placeholder="事先固定的交易资本总额"><div class="hint">不是总资产,是你事先划定、不为补仓而增加的那笔钱</div></div>
+          <div class="field"><label>失效价 INVALIDATION PRICE</label><input type="number" step="any" id="f_invalprice" placeholder="逻辑被证伪的价格"></div>
+        </div>
+        <!-- risk meter -->
+        <div class="risk-box" id="riskBox" style="display:none;">
+          <div class="risk-row">
+            <span class="risk-label">仓位 / 风险资本</span>
+            <span class="risk-val neutral" id="rmPct">—</span>
+          </div>
+          <div class="risk-bar-track"><div class="risk-bar-fill" id="rmPctBar" style="width:0%;background:var(--green);"></div></div>
+          <div class="risk-row" style="margin-top:14px;">
+            <span class="risk-label">触发失效时的亏损 / 风险资本</span>
+            <span class="risk-val neutral" id="rmLoss">—</span>
+          </div>
+          <div class="risk-bar-track"><div class="risk-bar-fill" id="rmLossBar" style="width:0%;background:var(--green);"></div></div>
+          <div class="risk-note" id="rmNote"></div>
+        </div>
+      </div>
+
+      <!-- sec 2: thesis -->
+      <div class="sec">
+        <div class="sec-head"><span class="sec-num">02</span><span class="sec-title">论点 <span class="en">THESIS — 你为什么做这笔交易</span></span></div>
+        <div class="field"><label>DRIVER · 什么会推动价格朝你的方向走</label><textarea id="f_driver" placeholder="基本面 / 估值 / 资金流 / 催化事件 — 必须是向前看的,不是已经发生的"></textarea></div>
+        <div class="field"><label>TARGET · 目标价(含推导)</label><textarea id="f_target" placeholder="不是拍脑袋的数字,要有推导逻辑"></textarea></div>
+        <div class="grid-2">
+          <div class="field"><label>TIME HORIZON · 时间窗口</label><input id="f_horizon" placeholder="预期多久内兑现"></div>
+          <div class="field"><label>EDGE · 我相信什么,是市场没在反应的</label><input id="f_edge" placeholder="若答案是'博主说的',如实写'我在跟单X',别包装成edge"></div>
+        </div>
+      </div>
+
+      <!-- sec 3: invalidation -->
+      <div class="sec">
+        <div class="sec-head"><span class="sec-num">03</span><span class="sec-title">失效条件 <span class="en">INVALIDATION — 什么情况证明你错了</span></span></div>
+        <div class="grid-2">
+          <div class="field"><label>基本面失效</label><textarea id="f_inval_f" placeholder="什么数据/事件让 driver 不成立 — 别写自己都不信会触发的"></textarea></div>
+          <div class="field"><label>技术面 / 价格失效</label><textarea id="f_inval_t" placeholder="什么价格/形态变化证明入场逻辑错了(不是'跌X%就走')"></textarea></div>
+          <div class="field"><label>时间失效</label><textarea id="f_inval_time" placeholder="窗口内没兑现,thesis 已变质 — 杠杆ETF这条要设得更紧"></textarea></div>
+          <div class="field"><label>同类失效(可选)</label><textarea id="f_inval_peer" placeholder="相关标的的什么信号会打破整个叙事"></textarea></div>
+        </div>
+      </div>
+
+      <!-- sec 4: pre-mortem -->
+      <div class="sec">
+        <div class="sec-head"><span class="sec-num">04</span><span class="sec-title">事前尸检 <span class="en">PRE-MORTEM — 假设它已经亏了</span></span></div>
+        <div class="field"><label>如果这笔交易最后亏了,最可能的原因是什么?</label><textarea id="f_pm_reason" placeholder="提前想象失败,能绕过过度自信"></textarea></div>
+        <div class="field"><label>这个原因发生时,我会看到什么信号?</label><textarea id="f_pm_signal" placeholder="把失败原因翻译成可观察的预警信号"></textarea></div>
+      </div>
+
+      <!-- submit -->
+      <div class="submit-bar">
+        <span class="submit-msg" id="submitMsg">完成 Decision Test 后解锁</span>
+        <button class="btn btn-amber" id="saveBtn" disabled>记录这笔交易</button>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="section-divider"><h2>历史记录 · 按标的归组</h2><span class="ln"></span>
+      <button class="btn btn-ghost btn-sm" id="exportBtn">导出备份</button>
+    </div>
+    <div id="historyArea">
+      <div class="empty-state"><div class="big">— 还没有记录 —</div><div class="small">完成上面的检验并填写第一笔,它会出现在这里,并按标的自动归组对比。</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ REVIEW MODAL ============ -->
+<div class="modal-bg" id="reviewModal">
+  <div class="modal">
+    <div class="modal-head"><h3>事后回顾 · Post-Trade Review</h3><button class="x-btn" id="reviewClose">×</button></div>
+    <div class="modal-body">
+      <div class="field"><label>实际结果 OUTCOME</label><input id="r_outcome" placeholder="如 +18% 退出 / -7% 止损 / 仍持有"></div>
+      <div class="field"><label>THESIS 对吗?</label><textarea id="r_thesis" placeholder="入场逻辑被验证了还是证伪了"></textarea></div>
+      <div class="field"><label>INVALIDATION 设得对吗?</label><textarea id="r_inval" placeholder="失效条件太松/太紧/正好"></textarea></div>
+      <div class="field"><label>退出时机对吗?</label><textarea id="r_exit" placeholder="按规则退出还是情绪退出"></textarea></div>
+      <div class="field"><label>给下一笔的提醒</label><textarea id="r_notes" placeholder="这次学到的,下次怎么改"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="reviewCancel">取消</button>
+      <button class="btn btn-amber" id="reviewSave">保存回顾</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ CONFIG ============
+const SUPABASE_URL = "https://rrnxrpowezukxrobcanl.supabase.co";
+const SUPABASE_KEY = "sb_publishable_fYga6xuLrwaCGX9MJ3m-0A_e5Auq8gU";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============ STATE ============
+let trades = [];
+let signupMode = false;
+let reviewTargetId = null;
+
+// ============ EL ============
+const $ = id => document.getElementById(id);
+const authScreen = $("authScreen"), app = $("app");
+
+// ============ AUTH ============
+async function checkSession() {
+  const { data } = await sb.auth.getSession();
+  if (data.session) { showApp(); loadTrades(); }
+  else showAuth();
+}
+function showAuth() { authScreen.style.display = "block"; app.style.display = "none"; }
+function showApp() { authScreen.style.display = "none"; app.style.display = "block"; }
+
+$("toggleLink").onclick = () => {
+  signupMode = !signupMode;
+  $("authTitle").textContent = signupMode ? "注册" : "登录";
+  $("authBtn").textContent = signupMode ? "创建账号" : "登录";
+  $("authToggle").innerHTML = signupMode
+    ? '已有账号? <a id="toggleLink">去登录</a>'
+    : '还没有账号? <a id="toggleLink">注册一个</a>';
+  $("toggleLink").onclick = arguments.callee;
+  $("authErr").textContent = "";
+};
+
+$("authBtn").onclick = async () => {
+  const email = $("authEmail").value.trim();
+  const pass = $("authPass").value;
+  const errEl = $("authErr");
+  errEl.textContent = "";
+  if (!email || !pass) { errEl.textContent = "请填写邮箱和密码"; return; }
+  $("authBtn").disabled = true;
+  try {
+    if (signupMode) {
+      const { error } = await sb.auth.signUp({ email, password: pass });
+      if (error) throw error;
+      const { data: s } = await sb.auth.getSession();
+      if (s.session) { showApp(); loadTrades(); }
+      else { errEl.style.color = "var(--green)"; errEl.textContent = "注册成功,请登录"; signupMode = false; $("toggleLink").onclick(); }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+      if (error) throw error;
+      showApp(); loadTrades();
+    }
+  } catch (e) {
+    errEl.style.color = "var(--red)";
+    errEl.textContent = translateAuthErr(e.message);
+  }
+  $("authBtn").disabled = false;
+};
+function translateAuthErr(m) {
+  if (/invalid login/i.test(m)) return "邮箱或密码错误";
+  if (/already registered/i.test(m)) return "该邮箱已注册,请直接登录";
+  if (/password should be/i.test(m)) return "密码至少 6 位";
+  if (/email/i.test(m) && /valid/i.test(m)) return "邮箱格式不正确";
+  return m;
+}
+$("signOutBtn").onclick = async () => { await sb.auth.signOut(); trades = []; showAuth(); };
+
+// ============ DECISION GATE ============
+$("gateCheck").onchange = e => {
+  const on = e.target.checked;
+  $("formShell").classList.toggle("locked", !on);
+  $("saveBtn").disabled = !on;
+  $("submitMsg").textContent = on ? "检验已通过 — 如实填写后记录" : "完成 Decision Test 后解锁";
+};
+
+// ============ RISK METER ============
+["f_entry","f_size","f_riskcap","f_invalprice"].forEach(id => $(id).addEventListener("input", updateRisk));
+function updateRisk() {
+  const entry = parseFloat($("f_entry").value);
+  const size = parseFloat($("f_size").value);
+  const cap = parseFloat($("f_riskcap").value);
+  const inval = parseFloat($("f_invalprice").value);
+  const box = $("riskBox");
+  if (!size && !cap && !entry && !inval) { box.style.display = "none"; return; }
+  box.style.display = "block";
+
+  // position / risk capital
+  if (size > 0 && cap > 0) {
+    const pct = size / cap * 100;
+    $("rmPct").textContent = pct.toFixed(1) + "%";
+    const bar = $("rmPctBar");
+    bar.style.width = Math.min(pct, 100) + "%";
+    let col = "var(--green)", cls = "ok";
+    if (pct > 25) { col = "var(--red)"; cls = "warn"; }
+    else if (pct > 15) { col = "var(--amber)"; cls = "neutral"; }
+    bar.style.background = col;
+    $("rmPct").className = "risk-val " + cls;
+  } else { $("rmPct").textContent = "—"; $("rmPct").className="risk-val neutral"; $("rmPctBar").style.width="0%"; }
+
+  // loss at invalidation / risk capital
+  if (entry > 0 && inval > 0 && size > 0 && cap > 0) {
+    const moveProp = Math.abs(entry - inval) / entry;       // % move to invalidation
+    const lossAmt = moveProp * size;                         // money lost on the position
+    const lossPctCap = lossAmt / cap * 100;                  // as % of risk capital
+    $("rmLoss").textContent = lossPctCap.toFixed(1) + "%  (约 " + Math.round(lossAmt) + ")";
+    const bar = $("rmLossBar");
+    bar.style.width = Math.min(lossPctCap, 100) + "%";
+    let col = "var(--green)", cls = "ok", note = "单笔风险在稳健区间(≤2%)。";
+    if (lossPctCap > 10) { col = "var(--red)"; cls = "warn"; note = "⚠ 单笔风险超过风险资本的 10% — 是稳健上限(1-2%)的数倍。要么缩小仓位,要么收紧失效价,两者不能同时成立。"; }
+    else if (lossPctCap > 5) { col = "var(--red)"; cls = "warn"; note = "⚠ 单笔风险偏高(>5%)。多数交易框架建议单笔控制在 1-2%。"; }
+    else if (lossPctCap > 2) { col = "var(--amber)"; cls = "neutral"; note = "单笔风险略高于 2% 的稳健线,留意。"; }
+    bar.style.background = col;
+    $("rmLoss").className = "risk-val " + cls;
+    $("rmNote").innerHTML = note;
+  } else {
+    $("rmLoss").textContent = "—"; $("rmLoss").className="risk-val neutral"; $("rmLossBar").style.width="0%";
+    $("rmNote").innerHTML = "填入 入场价 / 失效价 / 仓位 / 风险资本,自动计算触发失效时的最大亏损占比。";
+  }
+}
+
+// ============ SAVE TRADE ============
+$("saveBtn").onclick = async () => {
+  const ticker = $("f_ticker").value.trim();
+  if (!ticker) { toast("请至少填写标的代码", "err"); return; }
+  setSync("busy", "保存中");
+  const row = {
+    ticker,
+    trade_date: $("f_date").value || null,
+    entry_price: numOrNull($("f_entry").value),
+    invalidation_price: numOrNull($("f_invalprice").value),
+    position_size: numOrNull($("f_size").value),
+    risk_capital: numOrNull($("f_riskcap").value),
+    driver: $("f_driver").value.trim(),
+    target: $("f_target").value.trim(),
+    time_horizon: $("f_horizon").value.trim(),
+    edge: $("f_edge").value.trim(),
+    inval_fundamental: $("f_inval_f").value.trim(),
+    inval_technical: $("f_inval_t").value.trim(),
+    inval_time: $("f_inval_time").value.trim(),
+    inval_peer: $("f_inval_peer").value.trim(),
+    premortem_reason: $("f_pm_reason").value.trim(),
+    premortem_signal: $("f_pm_signal").value.trim(),
+    decision_test: $("gateCheck").checked
+  };
+  const { data: u } = await sb.auth.getUser();
+  row.user_id = u.user.id;
+  const { error } = await sb.from("trades").insert(row);
+  if (error) { setSync("err","出错"); toast("保存失败:" + error.message, "err"); return; }
+  setSync("ok","已同步");
+  toast("已记录并同步到云端", "ok");
+  clearForm();
+  loadTrades();
+};
+function numOrNull(v){ const n = parseFloat(v); return isNaN(n) ? null : n; }
+
+function clearForm() {
+  ["f_ticker","f_date","f_entry","f_invalprice","f_size","f_riskcap","f_driver","f_target","f_horizon","f_edge","f_inval_f","f_inval_t","f_inval_time","f_inval_peer","f_pm_reason","f_pm_signal"].forEach(id => $(id).value = "");
+  $("gateCheck").checked = false;
+  $("formShell").classList.add("locked");
+  $("saveBtn").disabled = true;
+  $("submitMsg").textContent = "完成 Decision Test 后解锁";
+  $("riskBox").style.display = "none";
+}
+
+// ============ LOAD + RENDER ============
+async function loadTrades() {
+  setSync("busy","加载中");
+  const { data, error } = await sb.from("trades").select("*").order("created_at", { ascending: false });
+  if (error) { setSync("err","出错"); toast("加载失败:" + error.message, "err"); return; }
+  trades = data || [];
+  setSync("ok","已同步");
+  renderHistory();
+}
+
+function renderHistory() {
+  const area = $("historyArea");
+  if (!trades.length) {
+    area.innerHTML = '<div class="empty-state"><div class="big">— 还没有记录 —</div><div class="small">完成上面的检验并填写第一笔,它会出现在这里,并按标的自动归组对比。</div></div>';
+    return;
+  }
+  // group by ticker
+  const groups = {};
+  trades.forEach(t => { (groups[t.ticker] = groups[t.ticker] || []).push(t); });
+  let html = "";
+  Object.keys(groups).forEach(tk => {
+    const list = groups[tk];
+    html += `<div class="ticker-group">
+      <div class="ticker-header" onclick="toggleGroup(this)">
+        <span class="tk">${esc(tk)}</span>
+        <span class="cnt">${list.length} 笔记录</span>
+        <span class="chev">▾</span>
+      </div>
+      <div class="ticker-cards">${list.map(renderCard).join("")}</div>
+    </div>`;
+  });
+  area.innerHTML = html;
+}
+
+function renderCard(t) {
+  // risk recompute for display
+  let riskTag = "";
+  if (t.entry_price && t.invalidation_price && t.position_size && t.risk_capital) {
+    const lossPct = Math.abs(t.entry_price - t.invalidation_price)/t.entry_price * t.position_size / t.risk_capital * 100;
+    if (lossPct > 5) riskTag = `<span class="tc-tag risk-hi">失效亏损 ${lossPct.toFixed(1)}%</span>`;
+    else riskTag = `<span class="tc-tag risk-lo">失效亏损 ${lossPct.toFixed(1)}%</span>`;
+  }
+  let posTag = "";
+  if (t.position_size && t.risk_capital) {
+    const pp = (t.position_size/t.risk_capital*100).toFixed(0);
+    posTag = `<span class="tc-tag">仓位 ${pp}%</span>`;
+  }
+  const hasReview = t.outcome || t.thesis_correct || t.invalidation_correct || t.exit_timing || t.review_notes;
+  const reviewTag = hasReview ? "" : `<span class="tc-tag open">未回顾</span>`;
+
+  const fld = (k,v) => `<div class="tc-field"><div class="k">${k}</div><div class="v ${v?"":"empty"}">${v?esc(v):"—"}</div></div>`;
+
+  let reviewBlock = "";
+  if (hasReview) {
+    reviewBlock = `<div class="tc-review">
+      <div class="tc-review-head">事后回顾 · POST-TRADE REVIEW</div>
+      <div class="tc-body">
+        ${fld("实际结果", t.outcome)}
+        ${fld("THESIS 对吗", t.thesis_correct)}
+        ${fld("INVALIDATION 对吗", t.invalidation_correct)}
+        ${fld("退出时机", t.exit_timing)}
+      </div>
+      ${t.review_notes ? `<div style="margin-top:12px;">${fld("给下一笔的提醒", t.review_notes)}</div>` : ""}
+    </div>`;
+  }
+
+  return `<div class="trade-card">
+    <div class="tc-top">
+      <span class="tc-date">${t.trade_date || fmtDate(t.created_at)}</span>
+      ${t.entry_price ? `<span class="tc-tag entry">入场 ${t.entry_price}</span>` : ""}
+      ${t.invalidation_price ? `<span class="tc-tag">失效 ${t.invalidation_price}</span>` : ""}
+      ${posTag}${riskTag}${reviewTag}
+      <span class="tc-spacer"></span>
+      <span class="tc-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openReview('${t.id}')">${hasReview?"编辑回顾":"+ 回顾"}</button>
+        <button class="btn btn-ghost btn-sm" onclick="delTrade('${t.id}')">删除</button>
+      </span>
+    </div>
+    <div class="tc-body">
+      ${fld("DRIVER 驱动", t.driver)}
+      ${fld("TARGET 目标", t.target)}
+      ${fld("TIME HORIZON 窗口", t.time_horizon)}
+      ${fld("EDGE 优势", t.edge)}
+      ${fld("基本面失效", t.inval_fundamental)}
+      ${fld("技术/价格失效", t.inval_technical)}
+      ${fld("时间失效", t.inval_time)}
+      ${fld("同类失效", t.inval_peer)}
+      ${fld("PRE-MORTEM 失败原因", t.premortem_reason)}
+      ${fld("PRE-MORTEM 预警信号", t.premortem_signal)}
+    </div>
+    ${reviewBlock}
+  </div>`;
+}
+
+window.toggleGroup = el => {
+  el.classList.toggle("collapsed");
+  el.nextElementSibling.classList.toggle("hidden");
+};
+
+window.delTrade = async id => {
+  if (!confirm("确定删除这笔记录?此操作不可撤销。")) return;
+  setSync("busy","删除中");
+  const { error } = await sb.from("trades").delete().eq("id", id);
+  if (error) { setSync("err","出错"); toast("删除失败:" + error.message, "err"); return; }
+  setSync("ok","已同步");
+  toast("已删除", "ok");
+  loadTrades();
+};
+
+// ============ REVIEW MODAL ============
+window.openReview = id => {
+  reviewTargetId = id;
+  const t = trades.find(x => x.id === id);
+  $("r_outcome").value = t.outcome || "";
+  $("r_thesis").value = t.thesis_correct || "";
+  $("r_inval").value = t.invalidation_correct || "";
+  $("r_exit").value = t.exit_timing || "";
+  $("r_notes").value = t.review_notes || "";
+  $("reviewModal").classList.add("show");
+};
+function closeReview(){ $("reviewModal").classList.remove("show"); reviewTargetId = null; }
+$("reviewClose").onclick = closeReview;
+$("reviewCancel").onclick = closeReview;
+$("reviewModal").onclick = e => { if (e.target === $("reviewModal")) closeReview(); };
+$("reviewSave").onclick = async () => {
+  if (!reviewTargetId) return;
+  setSync("busy","保存中");
+  const upd = {
+    outcome: $("r_outcome").value.trim(),
+    thesis_correct: $("r_thesis").value.trim(),
+    invalidation_correct: $("r_inval").value.trim(),
+    exit_timing: $("r_exit").value.trim(),
+    review_notes: $("r_notes").value.trim()
+  };
+  const { error } = await sb.from("trades").update(upd).eq("id", reviewTargetId);
+  if (error) { setSync("err","出错"); toast("保存失败:" + error.message, "err"); return; }
+  setSync("ok","已同步");
+  toast("回顾已保存", "ok");
+  closeReview();
+  loadTrades();
+};
+
+// ============ EXPORT ============
+$("exportBtn").onclick = () => {
+  const blob = new Blob([JSON.stringify(trades, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "trade-journal-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("已导出 " + trades.length + " 笔记录", "ok");
+};
+
+// ============ HELPERS ============
+function setSync(state, txt) {
+  const d = $("syncDot");
+  d.className = "dot " + (state === "ok" ? "ok" : state === "busy" ? "busy" : state === "err" ? "err" : "");
+  $("syncTxt").textContent = txt;
+}
+function toast(msg, type) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.className = "toast show " + (type || "");
+  setTimeout(() => el.className = "toast " + (type || ""), 2600);
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(iso){ return iso ? iso.slice(0,10) : ""; }
+
+// init date default
+$("f_date").value = new Date().toISOString().slice(0,10);
+
+// ============ BOOT ============
+checkSession();
+</script>
+</body>
+</html>

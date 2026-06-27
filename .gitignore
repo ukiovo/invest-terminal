@@ -1,0 +1,26 @@
+# ===== 隐私保护:绝不上传的文件 =====
+# 包含个人化交易心理分析,仅供本地 Claude Code 读取
+CONTEXT_PRIVATE.md
+
+# ===== 密钥防护:任何可能含密钥/凭证的文件 =====
+# 即使当前没用到,也先防住,避免日后手滑
+.env
+.env.*
+*.key
+*secret*
+*credentials*
+config.local.*
+
+# ===== 系统 / 编辑器杂项 =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# ===== 本地备份导出(如把交易数据导出成 json 放在项目里) =====
+# 交易数据是隐私,不应进入仓库
+trade-journal-backup-*.json
+*backup*.json
+# 首页导出的真实持仓快照
+portfolio.json

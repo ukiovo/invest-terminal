@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>INVEST TERMINAL · 投资终端</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18",
+      "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
+      "react-dom/client": "https://esm.sh/react-dom@18/client",
+      "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+    }
+  }
+  </script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>html,body{margin:0;background:#0a0e14}</style>
+</head>
+<body>
+  <div id="root" style="padding:24px;color:#888;font-family:monospace">加载中…</div>
+  <script>
+    // 浏览器内用 Babel 编译 app.jsx 再作为 ES 模块加载（无构建步骤，纯静态托管即可）。
+    fetch('app.jsx?t=' + Date.now())
+      .then(r => { if (!r.ok) throw new Error('无法读取 app.jsx（HTTP ' + r.status + '）'); return r.text(); })
+      .then(src => {
+        const code = src.replace(/export\s+default\s+function\s+App/, 'function App') + '\nexport default App;';
+        const out = Babel.transform(code, { presets: [['react', { runtime: 'automatic' }]], sourceType: 'module' }).code;
+        const url = URL.createObjectURL(new Blob([out], { type: 'text/javascript' }));
+        return Promise.all([import(url), import('react'), import('react-dom/client')]);
+      })
+      .then(([mod, React, { createRoot }]) => {
+        createRoot(document.getElementById('root')).render(React.createElement(mod.default));
+      })
+      .catch(e => {
+        document.getElementById('root').innerHTML =
+          '<pre style="color:#f85149;white-space:pre-wrap">出错：' + e.message + '</pre>';
+      });
+  </script>
+</body>
+</html>

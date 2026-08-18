@@ -92,6 +92,9 @@
 |---|---|---|
 | `portfolio` | `user_id` uuid PK / `data` jsonb / `updated_at` | 首页账户总览。`data` = `{accounts, trades, fx}` 整份存 JSON(文档式)。 |
 | `stress` | `user_id` uuid PK / `data` jsonb / `updated_at` | 压力测试页。`data` = `{holdings}`。 |
+| `diary` | `id` uuid PK / `user_id` / `created_at` / `kind` / `entry_date` / `title` / `mood` / `ticker` / `body` / `next_action` / `images` jsonb | 日记页。**每条一行**(会增长,故用行表)。`kind` 区分板块:`trade` 交易日记 / `life` 生活日记。日记页有日历,可按年月日筛选。`images` 存 `diary-images` 桶里的图片路径数组。 |
+
+日记图片存于私有存储桶 **`diary-images`**,路径约定 `{user_id}/{uuid}.{ext}`,`storage.objects` 上按文件夹首段=user_id 做 RLS,读取用签名 URL(见 `app.jsx` 的 `DiaryPage`)。
 
 建表 SQL 见 `supabase_portfolio.sql`。两张表都是「每用户一行、整份 JSON」的文档式存法——刻意从简,字段稳定后若要做按笔统计,再把交易流水拆成行表(干净的后续迁移)。
 
@@ -135,7 +138,8 @@
 
 ## 六、UI / 文案风格
 
-- 深色「交易终端」视觉:深底、单一琥珀色(`--amber: #f5a623`)强调,克制、不喧闹、不诱发情绪。配色变量集中在 `:root`。
+- **视觉基调变更(2026-06,用户明确要求)**:统一应用改为**紫色渐变 + 毛玻璃(glassmorphism)**风格——深紫底、紫色径向渐变、半透明 `backdrop-blur` 卡片、渐变文字强调色。`app.jsx` 用 `GLASS`/`GRAD`/`PAGE` 常量集中控制,`trade-journal.html` 用 `:root` 里的 `--amber`(现已指向紫色 `#a78bfa`)+ body 渐变背景。这与下面原定的「单一琥珀色、克制、不诱发情绪」相反,是用户在知情下的取舍;涨跌红绿语义保持不变。
+- (原定基调,保留作参考)深色「交易终端」视觉:深底、单一琥珀色强调,克制、不喧闹、不诱发情绪。
 - 中文为主,关键理论术语保留英文原词 + 中文释义(如 "thesis(论点)")。
 - 文案语气:冷静、直接、像实验记录本,不卖弄、不用感叹号堆砌。
 - 可访问性底线:键盘焦点可见、响应式到移动端、颜色不是唯一的信息载体。

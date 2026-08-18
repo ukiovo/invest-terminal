@@ -7,16 +7,16 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg: #0f1115;
-    --panel: #161a21;
-    --panel-2: #1b2029;
-    --line: #262d38;
-    --line-bright: #333c4a;
+    --bg: #0a0713;
+    --panel: rgba(26,20,40,0.72);
+    --panel-2: rgba(34,26,52,0.7);
+    --line: #2c2440;
+    --line-bright: #3d3358;
     --ink: #e8ecf1;
-    --ink-dim: #8b95a4;
-    --ink-faint: #5a6675;
-    --amber: #f5a623;
-    --amber-dim: #b3791a;
+    --ink-dim: #9a91b0;
+    --ink-faint: #6a6382;
+    --amber: #a78bfa;
+    --amber-dim: #7c5cbf;
     --green: #3fb27f;
     --red: #e25563;
     --blue: #5b8def;
@@ -26,13 +26,18 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    background: var(--bg);
+    background:
+      radial-gradient(1000px 500px at 15% -10%, rgba(124,58,237,0.28), transparent 60%),
+      radial-gradient(900px 480px at 100% 0%, rgba(192,132,252,0.18), transparent 55%),
+      var(--bg);
+    background-attachment: fixed;
     color: var(--ink);
     font-family: var(--sans);
     line-height: 1.6;
     font-size: 15px;
     min-height: 100vh;
   }
+  .topbar, .card, .panel, .history-card, .trade-card, .group-block { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
   ::selection { background: rgba(245,166,35,0.25); }
 
   /* ---- top bar ---- */
@@ -395,7 +400,7 @@ async function checkSession() {
   else showAuth();
 }
 function showAuth() { authScreen.style.display = "block"; app.style.display = "none"; }
-function showApp() { authScreen.style.display = "none"; app.style.display = "block"; }
+function showApp() { authScreen.style.display = "none"; app.style.display = "block"; restoreDraft(); }
 
 $("toggleLink").onclick = () => {
   signupMode = !signupMode;
@@ -537,7 +542,30 @@ function clearForm() {
   $("saveBtn").disabled = true;
   $("submitMsg").textContent = "完成 Decision Test 后解锁";
   $("riskBox").style.display = "none";
+  localStorage.removeItem(DRAFT_KEY);
 }
+
+// ============ DRAFT AUTOSAVE（仅防丢草稿，不存 Decision Test 勾选） ============
+const DRAFT_KEY = "tj_draft";
+const DRAFT_FIELDS = ["f_ticker","f_date","f_entry","f_invalprice","f_size","f_riskcap","f_driver","f_target","f_horizon","f_edge","f_inval_f","f_inval_t","f_inval_time","f_inval_peer","f_pm_reason","f_pm_signal"];
+function saveDraft() {
+  const d = {};
+  DRAFT_FIELDS.forEach(id => { const el = $(id); if (el && el.value) d[id] = el.value; });
+  if (Object.keys(d).length) localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  else localStorage.removeItem(DRAFT_KEY);
+}
+let draftRestored = false;
+function restoreDraft() {
+  if (draftRestored) return;
+  draftRestored = true;
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch (e) { d = null; }
+  if (!d) return;
+  DRAFT_FIELDS.forEach(id => { if (d[id] != null && $(id)) $(id).value = d[id]; });
+  if (typeof updateRisk === "function") updateRisk();
+  if (typeof toast === "function") toast("已恢复上次未提交的草稿（仍需重新勾选 Decision Test）", "ok");
+}
+DRAFT_FIELDS.forEach(id => { const el = $(id); if (el) el.addEventListener("input", saveDraft); });
 
 // ============ LOAD + RENDER ============
 async function loadTrades() {

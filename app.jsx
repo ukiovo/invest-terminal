@@ -11,7 +11,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const BASE = "CNY";
 const CCYS = ["CNY", "USD", "HKD"];
 const SYM = { CNY: "¥", USD: "$", HKD: "HK$" };
-const UP = "#3fb950", DOWN = "#f85149", AMBER = "#fb8500", PURPLE = "#a78bfa";
+const UP = "#3fb950", DOWN = "#f85149", AMBER = "#a78bfa", PURPLE = "#a78bfa", WARM = "#fb8500";
 
 const num = (v) => (v === "" || v == null ? 0 : Number(v) || 0);
 const money = (n, ccy) => SYM[ccy] + Math.round(n).toLocaleString("en-US");
@@ -21,8 +21,11 @@ const pctRaw = (n) => n.toFixed(1) + "%";
 const pnlColor = (n) => (n >= 0 ? UP : n < 0 ? DOWN : "#8b95a5");
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-const PAGE = { background: "#0a0e14", minHeight: "100vh", fontFamily: "'IBM Plex Sans', system-ui, sans-serif", color: "#e6edf3", boxSizing: "border-box" };
+const PAGE = { background: "radial-gradient(1100px 560px at 15% -10%, rgba(124,58,237,0.30), transparent 60%), radial-gradient(1000px 520px at 100% 0%, rgba(192,132,252,0.18), transparent 55%), #0a0713", backgroundAttachment: "fixed", minHeight: "100vh", fontFamily: "'IBM Plex Sans', system-ui, sans-serif", color: "#e6edf3", boxSizing: "border-box" };
 const MONO = { fontFamily: "'IBM Plex Mono', monospace" };
+const GRAD = "linear-gradient(90deg,#a78bfa,#c4b5fd,#f0abfc)";
+const GRAD_TEXT = { background: GRAD, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" };
+const GLASS = { background: "rgba(22,17,38,0.55)", border: "1px solid rgba(168,139,250,0.20)", borderRadius: 14, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", boxShadow: "0 8px 30px rgba(0,0,0,0.35)" };
 
 // ════════════════════ 顶层：登录 + 导航壳 ════════════════════
 export default function App() {
@@ -42,6 +45,7 @@ export default function App() {
   const NAV = [
     { id: "home", label: "首页 · 总览" },
     { id: "journal", label: "交易复盘日志" },
+    { id: "diary", label: "日记" },
     { id: "stress", label: "组合敞口 AI 压力测试" },
   ];
 
@@ -50,9 +54,9 @@ export default function App() {
       <style>{FONTS}{`input,select{outline:none}input:focus,select:focus{border-color:${AMBER}!important}`}</style>
 
       {/* 顶部导航 */}
-      <div style={{ borderBottom: "1px solid #1f2733", background: "#0c1119", position: "sticky", top: 0, zIndex: 10 }}>
+      <div style={{ borderBottom: "1px solid rgba(168,139,250,0.18)", background: "rgba(10,7,19,0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 980, margin: "0 auto", padding: "0 16px", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-          <div style={{ ...MONO, color: AMBER, fontWeight: 700, letterSpacing: 2, fontSize: 13, padding: "14px 0" }}>INVEST&nbsp;TERMINAL</div>
+          <div style={{ ...MONO, ...GRAD_TEXT, fontWeight: 700, letterSpacing: 2, fontSize: 13, padding: "14px 0" }}>INVEST&nbsp;TERMINAL</div>
           <nav style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             {NAV.map((n) => (
               <div key={n.id} onClick={() => setTab(n.id)} style={{ padding: "14px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: tab === n.id ? "#e6edf3" : "#6e7a8a", borderBottom: tab === n.id ? `2px solid ${AMBER}` : "2px solid transparent" }}>{n.label}</div>
@@ -70,14 +74,15 @@ export default function App() {
       {tab === "journal" && (
         <iframe title="交易复盘日志" src="trade-journal.html" style={{ width: "100%", height: "calc(100vh - 50px)", border: "none", display: "block" }} />
       )}
+      {tab === "diary" && <DiaryPage session={session} />}
       {tab === "stress" && <StressPage session={session} />}
     </div>
   );
 }
 
-const btn = { background: "#0c1119", border: "1px solid #1f2733", borderRadius: 7, color: "#9aa6b6", fontSize: 12, fontWeight: 600, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" };
-const iconBtn = { background: "transparent", border: "none", color: "#6e7a8a", cursor: "pointer", fontSize: 15, padding: "0 4px", lineHeight: 1 };
-const sel = { background: "#0c1119", border: "1px solid #1f2733", borderRadius: 5, color: "#9aa6b6", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, padding: "2px 4px" };
+const btn = { background: "rgba(168,139,250,0.10)", border: "1px solid rgba(168,139,250,0.30)", borderRadius: 8, color: "#d6ccf5", fontSize: 12, fontWeight: 600, padding: "6px 11px", cursor: "pointer", fontFamily: "inherit" };
+const iconBtn = { background: "transparent", border: "none", color: "#8b81a6", cursor: "pointer", fontSize: 15, padding: "0 4px", lineHeight: 1 };
+const sel = { background: "rgba(12,10,22,0.6)", border: "1px solid rgba(168,139,250,0.22)", borderRadius: 5, color: "#c9c2e0", fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, padding: "2px 4px" };
 
 function Splash({ text }) {
   return <div style={{ ...PAGE, display: "flex", alignItems: "center", justifyContent: "center", ...MONO, color: "#6e7a8a" }}><style>{FONTS}</style>{text}</div>;
@@ -110,13 +115,13 @@ function Login() {
   return (
     <div style={{ ...PAGE, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <style>{FONTS}{`input:focus{outline:none;border-color:${AMBER}}`}</style>
-      <div style={{ width: 320, background: "#11161f", border: "1px solid #1f2733", borderRadius: 12, padding: 24 }}>
-        <div style={{ ...MONO, color: AMBER, fontWeight: 700, letterSpacing: 2, fontSize: 12 }}>INVEST&nbsp;TERMINAL</div>
+      <div style={{ width: 320, ...GLASS, padding: 24 }}>
+        <div style={{ ...MONO, ...GRAD_TEXT, fontWeight: 700, letterSpacing: 2, fontSize: 12 }}>INVEST&nbsp;TERMINAL</div>
         <h2 style={{ fontSize: 20, margin: "8px 0 18px" }}>{signup ? "注册" : "登录"}</h2>
         <input style={inp} type="email" placeholder="邮箱" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input style={inp} type="password" placeholder="密码" value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} />
         {err && <div style={{ color: DOWN, fontSize: 12, marginBottom: 10 }}>{err}</div>}
-        <button disabled={busy} onClick={submit} style={{ width: "100%", background: AMBER, color: "#0a0e14", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, padding: "11px", cursor: "pointer", fontFamily: "inherit", opacity: busy ? 0.6 : 1 }}>{signup ? "创建账号" : "登录"}</button>
+        <button disabled={busy} onClick={submit} style={{ width: "100%", background: GRAD, color: "#1a1030", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 14, padding: "11px", cursor: "pointer", fontFamily: "inherit", opacity: busy ? 0.6 : 1 }}>{signup ? "创建账号" : "登录"}</button>
         <div style={{ fontSize: 12, color: "#6e7a8a", marginTop: 14, textAlign: "center" }}>
           {signup ? "已有账号？" : "还没有账号？"}
           <a onClick={() => { setSignup(!signup); setErr(""); }} style={{ color: AMBER, cursor: "pointer", marginLeft: 4 }}>{signup ? "去登录" : "注册一个"}</a>
@@ -233,7 +238,7 @@ function HomePage({ session }) {
 
   const S = {
     wrap: { maxWidth: 980, margin: "0 auto", padding: "20px 16px 56px" },
-    card: { background: "#11161f", border: "1px solid #1f2733", borderRadius: 12, padding: 16, marginBottom: 14 },
+    card: { ...GLASS, padding: 16, marginBottom: 14 },
     label: { fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", color: "#6e7a8a", fontWeight: 600 },
     th: { textAlign: "left", fontSize: 11, color: "#6e7a8a", fontWeight: 600, padding: "6px 8px", borderBottom: "1px solid #1f2733", whiteSpace: "nowrap" },
     td: { fontSize: 13, padding: "6px 8px", borderBottom: "1px solid #161c26", whiteSpace: "nowrap" },
@@ -255,7 +260,7 @@ function HomePage({ session }) {
 
       <div style={{ ...S.card, padding: 20 }}>
         <div style={S.label}>组合总资产 · 折算 {BASE}</div>
-        <div style={{ ...MONO, fontSize: 40, fontWeight: 700, lineHeight: 1.1, margin: "6px 0 2px" }}>{money(calc.total, BASE)}</div>
+        <div style={{ ...MONO, ...GRAD_TEXT, fontSize: 40, fontWeight: 700, lineHeight: 1.1, margin: "6px 0 2px" }}>{money(calc.total, BASE)}</div>
         <div style={{ display: "flex", gap: 22, flexWrap: "wrap", marginTop: 10 }}>
           <Stat label="持仓市值" value={money(calc.mv, BASE)} />
           <Stat label="现金" value={money(calc.cash, BASE)} />
@@ -464,7 +469,7 @@ function StressPage({ session }) {
   const S = {
     wrap: { maxWidth: 980, margin: "0 auto", padding: "20px 16px 56px" },
     mono: MONO,
-    card: { background: "#11161f", border: "1px solid #1f2733", borderRadius: 12, padding: 16, marginBottom: 14 },
+    card: { ...GLASS, padding: 16, marginBottom: 14 },
     label: { fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", color: "#6e7a8a", fontWeight: 600 },
     th: { textAlign: "left", fontSize: 11, color: "#6e7a8a", fontWeight: 600, padding: "6px 8px", borderBottom: "1px solid #1f2733", whiteSpace: "nowrap" },
     td: { fontSize: 13, padding: "6px 8px", borderBottom: "1px solid #161c26", whiteSpace: "nowrap" },
@@ -629,6 +634,220 @@ function StressPage({ session }) {
       <div style={{ fontSize: 10.5, color: "#4a5563", textAlign: "center", marginTop: 18, lineHeight: 1.5 }}>
         敏感度系数为估算（基于历史 β 和杠杆），非精确预测<br />仅供风险管理参考，不构成投资建议
       </div>
+    </div>
+  );
+}
+
+// ════════════════════ 日记 ════════════════════
+const MOODS = {
+  trade: ["", "冷静 / 客观", "贪婪 / FOMO", "恐惧 / 恐慌", "焦虑", "后悔 / 懊恼", "过度自信", "手痒 / 想做 T", "其他"],
+  life: ["", "平静", "开心", "充实", "疲惫", "焦虑", "低落", "愤怒", "其他"],
+};
+const BOARDS = [{ id: "trade", label: "交易日记" }, { id: "life", label: "生活日记" }];
+const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
+const newId = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2));
+const today = () => new Date().toISOString().slice(0, 10);
+const ymd = (y, m, d) => `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+function Calendar({ view, setView, selDate, setSelDate, days }) {
+  const { y, m } = view;
+  const first = new Date(y, m, 1).getDay();
+  const dim = new Date(y, m + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < first; i++) cells.push(null);
+  for (let d = 1; d <= dim; d++) cells.push(d);
+  const go = (dm) => { let nm = m + dm, ny = y; if (nm < 0) { nm = 11; ny--; } if (nm > 11) { nm = 0; ny++; } setView({ y: ny, m: nm }); };
+  const cellBase = { textAlign: "center", padding: "6px 0", fontSize: 12, borderRadius: 8, cursor: "pointer" };
+  return (
+    <div style={{ ...GLASS, padding: 14, marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <button style={{ ...iconBtn, fontSize: 20 }} onClick={() => go(-1)}>‹</button>
+        <span style={{ ...MONO, fontWeight: 700, fontSize: 15 }}>{y} 年 {m + 1} 月</span>
+        <button style={{ ...iconBtn, fontSize: 20 }} onClick={() => go(1)}>›</button>
+        <button style={{ ...btn, marginLeft: "auto", padding: "4px 9px" }} onClick={() => { const d = new Date(); setView({ y: d.getFullYear(), m: d.getMonth() }); }}>今天</button>
+        {selDate && <button style={{ ...btn, padding: "4px 9px" }} onClick={() => setSelDate(null)}>清除筛选</button>}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>
+        {WEEK.map((w) => <div key={w} style={{ textAlign: "center", fontSize: 10, color: "#8b81a6", padding: "2px 0" }}>{w}</div>)}
+        {cells.map((d, i) => {
+          if (!d) return <div key={i} />;
+          const ds = ymd(y, m, d), has = days.has(ds), isSel = selDate === ds, isToday = ds === today();
+          return (
+            <div key={i} onClick={() => setSelDate(isSel ? null : ds)} style={{ ...cellBase,
+              background: isSel ? "rgba(168,139,250,0.38)" : has ? "rgba(168,139,250,0.12)" : "transparent",
+              border: isToday ? "1px solid rgba(168,139,250,0.65)" : "1px solid transparent",
+              color: has || isSel ? "#e6edf3" : "#6a6382", fontWeight: has ? 700 : 400 }}>
+              {d}
+              <div style={{ width: 4, height: 4, borderRadius: "50%", background: has ? "#c4b5fd" : "transparent", margin: "2px auto 0" }} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DiaryPage({ session }) {
+  const [entries, setEntries] = useState(null);
+  const [urls, setUrls] = useState({}); // 图片路径 -> 签名URL
+  const [saveState, setSaveState] = useState("");
+  const loadedRef = useRef(false);
+  const entriesRef = useRef([]);
+  const dirty = useRef(new Set());
+  const saveTimer = useRef(null);
+  const [board, setBoard] = useState("trade");
+  const [view, setView] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [selDate, setSelDate] = useState(null);
+
+  useEffect(() => { entriesRef.current = entries || []; }, [entries]);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await sb.from("diary").select("*").eq("user_id", session.user.id).order("entry_date", { ascending: false }).order("created_at", { ascending: false });
+      if (error) { setSaveState("读取失败：" + error.message); setEntries([]); loadedRef.current = true; return; }
+      setEntries(data || []);
+      setSaveState(data && data.length ? "已加载" : "还没有日记，点「+ 新日记」开始");
+      const paths = (data || []).flatMap((e) => e.images || []);
+      if (paths.length) {
+        const { data: signed } = await sb.storage.from("diary-images").createSignedUrls(paths, 3600);
+        const map = {}; (signed || []).forEach((s) => { if (s.signedUrl) map[s.path] = s.signedUrl; });
+        setUrls(map);
+      }
+      loadedRef.current = true;
+    })();
+  }, [session.user.id]);
+
+  const scheduleSave = () => {
+    if (!loadedRef.current) return;
+    setSaveState("待保存…");
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(flush, 1000);
+  };
+  async function flush() {
+    const ids = [...dirty.current]; if (!ids.length) return;
+    const rows = entriesRef.current.filter((e) => ids.includes(e.id)).map((e) => ({
+      id: e.id, user_id: session.user.id, kind: e.kind || "trade", entry_date: e.entry_date || null, title: e.title || null,
+      mood: e.mood || null, ticker: e.ticker || null, body: e.body || null, next_action: e.next_action || null, images: e.images || [],
+    }));
+    setSaveState("保存中…");
+    const { error } = await sb.from("diary").upsert(rows);
+    if (error) { setSaveState("保存失败：" + error.message); return; }
+    dirty.current.clear();
+    setSaveState("已保存 " + new Date().toLocaleTimeString());
+  }
+
+  const edit = (id, patch) => { setEntries((es) => es.map((e) => (e.id === id ? { ...e, ...patch } : e))); dirty.current.add(id); scheduleSave(); };
+  const addEntry = () => { const e = { id: newId(), kind: board, entry_date: selDate || today(), title: "", mood: "", ticker: "", body: "", next_action: "", images: [] }; setEntries((es) => [e, ...(es || [])]); dirty.current.add(e.id); scheduleSave(); };
+  const delEntry = async (id) => {
+    const e = entriesRef.current.find((x) => x.id === id);
+    setEntries((es) => es.filter((x) => x.id !== id)); dirty.current.delete(id);
+    if (e && e.images && e.images.length) sb.storage.from("diary-images").remove(e.images);
+    await sb.from("diary").delete().eq("id", id);
+    setSaveState("已删除 " + new Date().toLocaleTimeString());
+  };
+  const uploadImg = async (id, file) => {
+    if (!file) return;
+    const ext = (file.name.split(".").pop() || "png").toLowerCase();
+    const path = `${session.user.id}/${newId()}.${ext}`;
+    setSaveState("上传图片…");
+    const { error } = await sb.storage.from("diary-images").upload(path, file, { upsert: false });
+    if (error) { setSaveState("图片上传失败：" + error.message); return; }
+    const { data: signed } = await sb.storage.from("diary-images").createSignedUrl(path, 3600);
+    if (signed && signed.signedUrl) setUrls((u) => ({ ...u, [path]: signed.signedUrl }));
+    const cur = entriesRef.current.find((e) => e.id === id);
+    edit(id, { images: [...((cur && cur.images) || []), path] });
+  };
+  const removeImg = (id, path) => {
+    const cur = entriesRef.current.find((e) => e.id === id);
+    edit(id, { images: ((cur && cur.images) || []).filter((p) => p !== path) });
+    sb.storage.from("diary-images").remove([path]);
+  };
+
+  const S = {
+    wrap: { maxWidth: 760, margin: "0 auto", padding: "20px 16px 56px" },
+    card: { ...GLASS, padding: 16, marginBottom: 14 },
+    label: { fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", color: "#6e7a8a", fontWeight: 600 },
+    field: { background: "rgba(12,10,22,0.6)", border: "1px solid rgba(168,139,250,0.22)", borderRadius: 8, color: "#e6edf3", fontFamily: "inherit", fontSize: 14, padding: "9px 11px", boxSizing: "border-box", width: "100%" },
+  };
+
+  if (!entries) return <Splash text="读取日记…" />;
+
+  const boardEntries = entries.filter((e) => (e.kind || "trade") === board);
+  const days = new Set(boardEntries.map((e) => e.entry_date).filter(Boolean));
+  const visible = selDate ? boardEntries.filter((e) => e.entry_date === selDate) : boardEntries;
+  const nextLabel = board === "trade" ? "下一步 →" : "感想 / 提醒 →";
+  const nextPh = board === "trade" ? "一句话：下次我要怎么改（可选）" : "一句话：留给未来的自己（可选）";
+  const bodyPh = board === "trade" ? "正文——今天发生了什么，你怎么想、怎么做的" : "正文——今天的生活、心情、想记下的事";
+
+  return (
+    <div style={S.wrap}>
+      {/* 板块切换 */}
+      <div style={{ display: "inline-flex", gap: 4, padding: 4, ...GLASS, borderRadius: 12, marginBottom: 14 }}>
+        {BOARDS.map((b) => (
+          <div key={b.id} onClick={() => { setBoard(b.id); setSelDate(null); }} style={{ padding: "7px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", borderRadius: 9, background: board === b.id ? "rgba(168,139,250,0.25)" : "transparent", color: board === b.id ? "#e6edf3" : "#8b81a6" }}>{b.label}</div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 14px" }}>
+        <span style={{ ...MONO, fontSize: 11, color: saveState.includes("失败") ? DOWN : "#8b81a6" }}>● {saveState}</span>
+        <button style={{ ...btn, marginLeft: "auto" }} onClick={addEntry}>+ 新日记</button>
+      </div>
+
+      <Calendar view={view} setView={setView} selDate={selDate} setSelDate={setSelDate} days={days} />
+
+      {selDate && <div style={{ ...MONO, fontSize: 12, color: "#c4b5fd", marginBottom: 10 }}>筛选：{selDate}（共 {visible.length} 条）</div>}
+
+      {visible.length === 0 && (
+        <div style={{ ...S.card, textAlign: "center", color: "#8b81a6", fontSize: 13, padding: "36px 16px" }}>
+          {selDate ? "这一天还没有日记。" : "还没有日记。点右上角「+ 新日记」记录第一条。"}
+        </div>
+      )}
+
+      {visible.map((e) => (
+        <div key={e.id} style={S.card}>
+          {/* 头：日期 / 情绪 / 标的 / 删除 */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+            <input type="date" value={e.entry_date || ""} onChange={(ev) => edit(e.id, { entry_date: ev.target.value })} style={{ ...S.field, width: "auto", padding: "6px 9px", ...MONO, fontSize: 13, colorScheme: "dark" }} />
+            <select value={e.mood || ""} onChange={(ev) => edit(e.id, { mood: ev.target.value })} style={{ ...S.field, width: "auto", padding: "6px 9px", fontSize: 13, color: e.mood ? "#e6edf3" : "#8b81a6" }}>
+              {MOODS[board].map((mo) => <option key={mo} value={mo}>{mo || "情绪…"}</option>)}
+            </select>
+            {board === "trade" && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span style={{ ...MONO, fontSize: 12, color: "#8b81a6" }}>$</span>
+                <input value={e.ticker || ""} onChange={(ev) => edit(e.id, { ticker: ev.target.value })} placeholder="标的" style={{ ...S.field, width: 78, padding: "6px 9px", ...MONO, fontSize: 13 }} />
+              </span>
+            )}
+            <button style={{ ...iconBtn, marginLeft: "auto" }} title="删除这条日记" onClick={() => delEntry(e.id)}>✕</button>
+          </div>
+
+          <input value={e.title || ""} onChange={(ev) => edit(e.id, { title: ev.target.value })} placeholder="标题" style={{ ...S.field, fontSize: 16, fontWeight: 700, marginBottom: 10 }} />
+          <textarea value={e.body || ""} onChange={(ev) => edit(e.id, { body: ev.target.value })} placeholder={bodyPh} rows={5} style={{ ...S.field, resize: "vertical", lineHeight: 1.6, marginBottom: 10 }} />
+
+          {/* 图片 */}
+          {e.images && e.images.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              {e.images.map((p) => (
+                <div key={p} style={{ position: "relative" }}>
+                  {urls[p]
+                    ? <a href={urls[p]} target="_blank" rel="noreferrer"><img src={urls[p]} alt="" style={{ height: 96, borderRadius: 8, border: "1px solid #1f2733", display: "block" }} /></a>
+                    : <div style={{ height: 96, width: 96, borderRadius: 8, border: "1px solid #1f2733", background: "#0c1119", display: "flex", alignItems: "center", justifyContent: "center", color: "#6e7a8a", fontSize: 11 }}>加载中</div>}
+                  <button onClick={() => removeImg(e.id, p)} style={{ position: "absolute", top: -8, right: -8, background: "#11161f", border: "1px solid #2a3340", color: "#c9d1d9", borderRadius: "50%", width: 20, height: 20, cursor: "pointer", fontSize: 12, lineHeight: 1 }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label style={{ ...btn, display: "inline-block", marginBottom: 10 }}>
+            + 图片
+            <input type="file" accept="image/*" style={{ display: "none" }} onChange={(ev) => { uploadImg(e.id, ev.target.files[0]); ev.target.value = ""; }} />
+          </label>
+
+          {/* 下一步 */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(12,10,22,0.5)", border: "1px solid rgba(168,139,250,0.2)", borderRadius: 8, padding: "8px 11px" }}>
+            <span style={{ fontSize: 12, color: AMBER, fontWeight: 600, whiteSpace: "nowrap" }}>{nextLabel}</span>
+            <input value={e.next_action || ""} onChange={(ev) => edit(e.id, { next_action: ev.target.value })} placeholder={nextPh} style={{ background: "transparent", border: "none", color: "#e6edf3", fontFamily: "inherit", fontSize: 13, width: "100%" }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

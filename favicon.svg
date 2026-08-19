@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- 深紫底 -->
+  <rect width="16" height="16" fill="#0a0713"/>
+  <rect x="0" y="0" width="16" height="16" fill="none"/>
+  <!-- 像素风上升柱状 -->
+  <rect x="2"  y="11" width="2" height="3" fill="#6d4fb0"/>
+  <rect x="5"  y="8"  width="2" height="6" fill="#8b5cf6"/>
+  <rect x="8"  y="10" width="2" height="4" fill="#a78bfa"/>
+  <rect x="11" y="5"  width="2" height="9" fill="#c4b5fd"/>
+  <!-- 绿色上涨像素点 -->
+  <rect x="11" y="3"  width="2" height="2" fill="#3fb950"/>
+  <rect x="13" y="2"  width="1" height="1" fill="#3fb950"/>
+</svg>
